@@ -1,0 +1,15 @@
+{
+  "name": "engbrain-quiz-worker",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/worker.test.js",
+    "start": "python -m http.server 8787 --directory public",
+    "dev": "npx wrangler dev",
+    "deploy": "npx wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.16.1"
+  }
+}

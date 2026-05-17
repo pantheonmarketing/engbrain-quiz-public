@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Engbrain Kids Phonics Academy — ค้นหาคอร์สที่เหมาะกับลูกของคุณ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: oklch(0.97 0.018 78);
+    --bg-2: oklch(0.94 0.03 78);
+    --ink: oklch(0.22 0.025 150);
+    --ink-2: oklch(0.42 0.02 150);
+    --ink-3: oklch(0.62 0.015 150);
+    --line: oklch(0.88 0.015 78);
+    --line-2: oklch(0.82 0.02 78);
+    --card: oklch(0.995 0.005 78);
+    --coral: oklch(0.78 0.11 38);
+    --coral-ink: oklch(0.42 0.09 38);
+    --coral-soft: oklch(0.95 0.04 38);
+    --mint: oklch(0.75 0.12 160);
+    --mint-ink: oklch(0.38 0.08 160);
+    --mint-soft: oklch(0.94 0.04 160);
+    --butter: oklch(0.93 0.09 88);
+    --butter-ink: oklch(0.45 0.08 75);
+    --sky: oklch(0.82 0.08 230);
+    --sky-soft: oklch(0.94 0.03 230);
+    --line-green:#06C755;
+    --messenger:#0084FF;
+    --shadow-sm: 0 1px 2px rgba(40,30,20,.04), 0 2px 6px rgba(40,30,20,.04);
+    --shadow-md: 0 4px 14px rgba(40,30,20,.06), 0 12px 32px rgba(40,30,20,.08);
+    --shadow-lg: 0 20px 50px rgba(40,30,20,.12), 0 2px 8px rgba(40,30,20,.05);
+    --radius: 18px;
+    --radius-sm: 12px;
+    --radius-lg: 28px;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family: 'Noto Sans Thai', 'Plus Jakarta Sans', system-ui, sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, oklch(0.94 0.06 35 / .55), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, oklch(0.92 0.07 160 / .45), transparent 55%),
+      radial-gradient(800px 600px at 50% 110%, oklch(0.93 0.08 85 / .5), transparent 60%),
+      var(--bg);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  .serif{ font-family:'Noto Sans Thai', 'Plus Jakarta Sans', system-ui, sans-serif; font-weight:700; letter-spacing:0; }
+  #app{ min-height:100vh; }
+  /* stage centers the phone-width card on desktop, full-bleed on mobile */
+  .stage{
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 20px 16px 160px;
+    position:relative;
+  }
+  @media (min-width: 720px){
+    .stage{ padding: 48px 20px 200px; max-width: 560px; }
+  }
+
+  /* ---- Buttons ---- */
+  .btn{ font: 700 15px/1 'Noto Sans Thai', 'Plus Jakarta Sans'; border:none; cursor:pointer; border-radius:999px; padding:16px 22px; transition: transform .15s ease, box-shadow .2s ease, background .2s ease; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+  .btn:active{ transform: translateY(1px); }
+  .btn-primary{ background: var(--ink); color: #fffdf9; box-shadow: var(--shadow-md); }
+  .btn-primary:hover{ background: oklch(0.3 0.03 150); }
+  .btn-coral{
+    background: linear-gradient(180deg, #ff3b30 0%, #e11919 55%, #b90000 100%);
+    color:#fffdf9;
+    font-weight:900;
+    font-size:18px;
+    padding:21px 28px;
+    border:1px solid rgba(255,255,255,.28);
+    box-shadow:
+      0 18px 34px rgba(225,25,25,.45),
+      0 5px 0 #7f0000,
+      inset 0 1px 0 rgba(255,255,255,.48);
+    text-shadow: 0 1px 1px rgba(80,0,0,.35);
+  }
+  .btn-coral:hover{ filter: brightness(1.06) saturate(1.05); }
+  .btn-coral:active{
+    box-shadow:
+      0 9px 20px rgba(225,25,25,.35),
+      0 2px 0 #7f0000,
+      inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .btn-ghost{ background: transparent; color: var(--ink-2); padding:16px 18px; }
+  .btn-ghost:hover{ color: var(--ink); }
+  .btn-outline{ background: var(--card); color: var(--ink); border:1.5px solid var(--line-2); }
+  .btn-outline:hover{ border-color: var(--ink); }
+
+  /* ---- Shared card shell ---- */
+  .card{
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid oklch(0.9 0.02 78 / .6);
+    overflow:hidden;
+  }
+
+  /* ---- ตั้งค่าหน้าตัวอย่าง panel ---- */
+  #tweaks{ position:fixed; right:16px; bottom:16px; z-index:200; background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow: var(--shadow-lg); padding:14px; width:260px; display:none; font-size:13px;}
+  #tweaks.open{display:block;}
+  #tweaks h4{ margin:0 0 10px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); }
+  #tweaks label{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 0; }
+  #tweaks select, #tweaks input[type=range]{ font: inherit; }
+
+  /* Utility */
+  .row{ display:flex; align-items:center; gap:8px; }
+  .between{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .muted{ color: var(--ink-3); }
+  .tiny{ font-size:12px; letter-spacing:.02em; }
+  .micro{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<!-- ตั้งค่าหน้าตัวอย่าง -->
+<div id="tweaks" aria-live="polite">
+  <h4>ตั้งค่าหน้าตัวอย่าง</h4>
+  <label>สีหลัก
+    <select data-tweak="accent">
+      <option value="coral">คอรัล (ค่าเริ่มต้น)</option>
+      <option value="mint">มิ้นต์</option>
+      <option value="butter">เหลืองอ่อน</option>
+      <option value="sky">ฟ้า</option>
+    </select>
+  </label>
+  <label>สไตล์ภาพหลัก
+    <select data-tweak="hero">
+      <option value="portrait">ภาพใหญ่</option>
+      <option value="collage">ภาพคอลลาจ</option>
+      <option value="illustration">ภาพวาด</option>
+    </select>
+  </label>
+  <label>เลย์เอาต์หน้าแรก
+    <select data-tweak="welcome">
+      <option value="stacked">เรียงลงมา (ค่าเริ่มต้น)</option>
+      <option value="postcard">โปสต์การ์ด</option>
+    </select>
+  </label>
+  <label>รูปครูโบว์
+    <select data-tweak="avatar">
+      <option value="photo">รูปวงกลม</option>
+      <option value="emoji">อีโมจิ (👩‍🏫)</option>
+      <option value="initial">ตัวอักษร B</option>
+    </select>
+  </label>
+  <label>ข้ามไปขั้นตอน
+    <select data-tweak="step">
+      <option value="welcome">หน้าแรก</option>
+      <option value="1">Step 1</option><option value="2">Step 2</option>
+      <option value="3">Step 3</option><option value="4">Step 4</option>
+      <option value="5">Step 5</option><option value="6">Step 6</option>
+      <option value="7">Step 7</option><option value="8">Step 8</option>
+      <option value="9">Step 9</option><option value="10">Step 10</option>
+      <option value="loading">กำลังโหลด</option>
+      <option value="result">ผลลัพธ์</option>
+    </select>
+  </label>
+</div>
+
+<script>
+  // Tweak defaults (editable block)
+  window.TWEAKS = /*EDITMODE-BEGIN*/{
+    "accent": "coral",
+    "hero": "portrait",
+    "welcome": "stacked",
+    "avatar": "photo",
+    "step": "welcome"
+  }/*EDITMODE-END*/;
+
+  // Edit-mode wiring
+  window.addEventListener('message', (e) => {
+    const d = e.data || {};
+    if (d.type === '__activate_edit_mode') document.getElementById('tweaks').classList.add('open');
+    if (d.type === '__deactivate_edit_mode') document.getElementById('tweaks').classList.remove('open');
+  });
+  window.parent && window.parent.postMessage({type:'__edit_mode_available'}, '*');
+
+  document.querySelectorAll('[data-tweak]').forEach(el => {
+    el.value = window.TWEAKS[el.dataset.tweak];
+    el.addEventListener('change', () => {
+      window.TWEAKS[el.dataset.tweak] = el.value;
+      window.parent && window.parent.postMessage({type:'__edit_mode_set_keys', edits:{[el.dataset.tweak]: el.value}}, '*');
+      window.__render && window.__render();
+    });
+  });
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="src/placeholders.jsx"></script>
+<script type="text/babel" src="src/welcome.jsx"></script>
+<script type="text/babel" src="src/quiz.jsx"></script>
+<script type="text/babel" src="src/results.jsx"></script>
+<script type="text/babel" src="src/app.jsx"></script>
+</body>
+</html>
