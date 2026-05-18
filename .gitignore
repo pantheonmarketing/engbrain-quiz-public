@@ -3,3 +3,4 @@ node_modules/
 .playwright-mcp/
 *.bat
 *.txt
+.DS_Store
