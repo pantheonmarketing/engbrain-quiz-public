@@ -540,13 +540,14 @@ function crmHtml() {
 <div id="msg" class="msg"></div>
 <script>
 let leads=[];
+const API_BASE=location.origin;
 const $=id=>document.getElementById(id);
 function showMsg(text){$('msg').textContent=text;$('msg').style.display='block';setTimeout(()=>$('msg').style.display='none',2200)}
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function priorityLabel(p){return p==='NURTURE'?'COLD/NURTURE':(p||'ไม่ระบุ')}
 function summaryText(lead){return JSON.stringify(lead.answers||{},null,2)}
 async function loadLeads(){
-  const res=await fetch('/api/leads',{cache:'no-store'});
+  const res=await fetch(API_BASE + '/api/leads',{cache:'no-store'});
   if(!res.ok){$('grid').textContent='โหลดข้อมูลไม่ได้ หรือ username/password ไม่ถูกต้อง';return}
   leads=(await res.json()).leads||[]; render();
 }
@@ -578,7 +579,7 @@ function render(){
 }
 async function saveLead(id){
   const payload={}; document.querySelectorAll('[data-id="' + CSS.escape(id) + '"]').forEach(el=>payload[el.dataset.field]=el.value);
-  const res=await fetch('/api/leads/'+encodeURIComponent(id),{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  const res=await fetch(API_BASE + '/api/leads/'+encodeURIComponent(id),{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
   if(!res.ok){showMsg('บันทึกไม่สำเร็จ');return}
   const updated=(await res.json()).lead; leads=leads.map(l=>l.id===id?updated:l); render(); showMsg('บันทึกแล้ว');
 }

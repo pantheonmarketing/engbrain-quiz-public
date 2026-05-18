@@ -281,6 +281,16 @@ test('CRM requires username and password before showing leads', async () => {
   assert.match(res.headers.get('www-authenticate'), /EngBrain CRM/);
 });
 
+test('CRM page uses credential-safe API URLs for browser basic auth', async () => {
+  const res = await handleCrmRequest(crmRequest('/crm', {
+    headers: { authorization: basicAuth() },
+  }), { LEADS_KV: createKv(), CRM_USERNAME: 'sales', CRM_PASSWORD: 'secret' });
+  const html = await res.text();
+
+  assert.match(html, /const API_BASE=location\.origin/);
+  assert.doesNotMatch(html, /fetch\('\/api\/leads/);
+});
+
 test('CRM lists leads with sales status, qualification, contact info, and all answers', async () => {
   const kv = createKv();
   const lead = {
