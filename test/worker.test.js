@@ -291,6 +291,18 @@ test('CRM page uses credential-safe API URLs for browser basic auth', async () =
   assert.doesNotMatch(html, /fetch\('\/api\/leads/);
 });
 
+test('CRM page does not show raw debug answer JSON', async () => {
+  const res = await handleCrmRequest(crmRequest('/crm', {
+    headers: { authorization: basicAuth() },
+  }), { LEADS_KV: createKv(), CRM_USERNAME: 'sales', CRM_PASSWORD: 'secret' });
+  const html = await res.text();
+
+  assert.doesNotMatch(html, /ดูคำตอบทั้งหมด/);
+  assert.doesNotMatch(html, /summaryText\(/);
+  assert.doesNotMatch(html, /JSON\.stringify\(lead\.answers/);
+  assert.doesNotMatch(html, /<details><summary>/);
+});
+
 test('CRM lists leads with sales status, qualification, contact info, and all answers', async () => {
   const kv = createKv();
   const lead = {

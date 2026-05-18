@@ -523,11 +523,11 @@ function crmHtml() {
 <style>
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Noto Sans Thai',Arial,sans-serif;background:#fff7ed;color:#1f2937;}
   header{position:sticky;top:0;background:#111827;color:white;padding:18px 22px;z-index:2;box-shadow:0 4px 18px #0002;}
-  h1{margin:0;font-size:22px}.sub{opacity:.8;font-size:13px;margin-top:4px}.wrap{padding:18px;max-width:1500px;margin:auto}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.toolbar input,.toolbar select{padding:10px 12px;border:1px solid #ddd;border-radius:12px;font:inherit}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}.card{background:white;border:1px solid #f1d7bd;border-radius:18px;padding:16px;box-shadow:0 8px 28px #9a341222}.top{display:flex;justify-content:space-between;gap:10px}.badge{font-weight:800;border-radius:999px;padding:5px 10px;font-size:12px}.HOT{background:#fee2e2;color:#991b1b}.WARM{background:#fef3c7;color:#92400e}.NURTURE,.COLD{background:#e0f2fe;color:#075985}.name{font-size:18px;font-weight:800}.meta{font-size:13px;color:#6b7280;margin:4px 0}.line{margin:7px 0;font-size:14px}.sales{display:grid;gap:8px;margin-top:12px}.sales input,.sales select,.sales textarea{width:100%;box-sizing:border-box;padding:9px;border:1px solid #ddd;border-radius:10px;font:inherit}.sales textarea{min-height:70px}button{border:0;border-radius:12px;background:#111827;color:white;padding:10px 12px;font-weight:800;cursor:pointer}.answers{white-space:pre-wrap;background:#f9fafb;border-radius:12px;padding:10px;font-size:12px;max-height:170px;overflow:auto}.msg{position:fixed;right:16px;bottom:16px;background:#111827;color:white;padding:12px 14px;border-radius:12px;display:none}
+  h1{margin:0;font-size:22px}.sub{opacity:.8;font-size:13px;margin-top:4px}.wrap{padding:18px;max-width:1500px;margin:auto}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.toolbar input,.toolbar select{padding:10px 12px;border:1px solid #ddd;border-radius:12px;font:inherit}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}.card{background:white;border:1px solid #f1d7bd;border-radius:18px;padding:16px;box-shadow:0 8px 28px #9a341222}.top{display:flex;justify-content:space-between;gap:10px}.badge{font-weight:800;border-radius:999px;padding:5px 10px;font-size:12px}.HOT{background:#fee2e2;color:#991b1b}.WARM{background:#fef3c7;color:#92400e}.NURTURE,.COLD{background:#e0f2fe;color:#075985}.name{font-size:18px;font-weight:800}.meta{font-size:13px;color:#6b7280;margin:4px 0}.line{margin:7px 0;font-size:14px}.sales{display:grid;gap:8px;margin-top:12px}.sales input,.sales select,.sales textarea{width:100%;box-sizing:border-box;padding:9px;border:1px solid #ddd;border-radius:10px;font:inherit}.sales textarea{min-height:70px}button{border:0;border-radius:12px;background:#111827;color:white;padding:10px 12px;font-weight:800;cursor:pointer}.msg{position:fixed;right:16px;bottom:16px;background:#111827;color:white;padding:12px 14px;border-radius:12px;display:none}
 </style>
 </head>
 <body>
-<header><h1>EngBrain Leads CRM</h1><div class="sub">ลีดจากแบบทดสอบ พร้อมสถานะทีมเซลส์ โทร แชท โน้ต และคำตอบทั้งหมด</div></header>
+<header><h1>EngBrain Leads CRM</h1><div class="sub">ลีดจากแบบทดสอบ พร้อมสถานะทีมเซลส์ โทร แชท และโน้ต</div></header>
 <div class="wrap">
   <div class="toolbar">
     <input id="q" placeholder="ค้นหาชื่อ เบอร์ LINE คอร์ส โน้ต" />
@@ -545,7 +545,6 @@ const $=id=>document.getElementById(id);
 function showMsg(text){$('msg').textContent=text;$('msg').style.display='block';setTimeout(()=>$('msg').style.display='none',2200)}
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function priorityLabel(p){return p==='NURTURE'?'COLD/NURTURE':(p||'ไม่ระบุ')}
-function summaryText(lead){return JSON.stringify(lead.answers||{},null,2)}
 async function loadLeads(){
   const res=await fetch(API_BASE + '/api/leads',{cache:'no-store'});
   if(!res.ok){$('grid').textContent='โหลดข้อมูลไม่ได้ หรือ username/password ไม่ถูกต้อง';return}
@@ -572,7 +571,6 @@ function render(){
       '<textarea data-id="' + esc(l.id) + '" data-field="notes" placeholder="โน้ตเซลส์">' + esc(l.sales?.notes) + '</textarea>' +
       '<button data-save-id="' + esc(l.id) + '">บันทึก</button>' +
     '</div>' +
-    '<details><summary>ดูคำตอบทั้งหมด</summary><pre class="answers">' + esc(summaryText(l)) + '</pre></details>' +
   '</div>').join('') || 'ยังไม่มีลีด';
   filtered.forEach(l=>{ const sel=document.querySelector('select[data-id="' + CSS.escape(l.id) + '"][data-field="status"]'); if(sel) sel.value=l.sales?.status||'ใหม่'; });
   document.querySelectorAll('button[data-save-id]').forEach(btn=>btn.addEventListener('click',()=>saveLead(btn.dataset.saveId)));
