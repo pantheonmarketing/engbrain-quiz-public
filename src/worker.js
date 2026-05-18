@@ -411,6 +411,225 @@ async function sendTelegram(lead, env, deps) {
   return { ok: true };
 }
 
+function crmJson(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+    },
+  });
+}
+
+function decodeBasicAuth(header) {
+  if (!header || !header.startsWith('Basic ')) return null;
+  try {
+    const decoded = atob(header.slice(6));
+    const splitAt = decoded.indexOf(':');
+    if (splitAt === -1) return null;
+    return {
+      username: decoded.slice(0, splitAt),
+      password: decoded.slice(splitAt + 1),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function crmUnauthorized() {
+  return new Response('Authentication required', {
+    status: 401,
+    headers: {
+      'www-authenticate': 'Basic realm="EngBrain CRM", charset="UTF-8"',
+      'cache-control': 'no-store',
+    },
+  });
+}
+
+function requireCrmAuth(request, env) {
+  if (!env.CRM_USERNAME || !env.CRM_PASSWORD) {
+    return new Response('CRM login is not configured.', { status: 503 });
+  }
+  const credentials = decodeBasicAuth(request.headers.get('authorization'));
+  if (!credentials || credentials.username !== env.CRM_USERNAME || credentials.password !== env.CRM_PASSWORD) {
+    return crmUnauthorized();
+  }
+  return null;
+}
+
+function defaultSalesState(lead = {}) {
+  return {
+    owner: '',
+    status: 'ใหม่',
+    channel: '',
+    nextFollowUp: '',
+    notes: '',
+    updatedAt: '',
+    ...(lead.sales || {}),
+  };
+}
+
+function crmLeadView(id, lead) {
+  const answers = lead.answers || {};
+  const contact = answers['10'] || {};
+  return {
+    id,
+    receivedAt: lead.receivedAt || '',
+    path: lead.path || '',
+    contact,
+    child: answers['2'] || {},
+    match: lead.match || {},
+    qualification: lead.qualification || buildSalesQualification(lead),
+    sales: defaultSalesState(lead),
+    answers,
+  };
+}
+
+function cleanSalesPatch(body, deps = {}) {
+  const nowIso = new Date(deps.now?.() ?? Date.now()).toISOString();
+  return {
+    owner: cleanString(body?.owner, 120),
+    status: cleanString(body?.status || 'ใหม่', 80),
+    channel: cleanString(body?.channel, 120),
+    nextFollowUp: cleanString(body?.nextFollowUp, 80),
+    notes: cleanString(body?.notes, 1500),
+    updatedAt: nowIso,
+  };
+}
+
+async function listCrmLeads(env) {
+  if (!env.LEADS_KV?.list) return [];
+  const listed = await env.LEADS_KV.list({ prefix: 'lead:' });
+  const leads = [];
+  for (const key of listed.keys || []) {
+    const raw = await env.LEADS_KV.get(key.name);
+    if (!raw) continue;
+    try {
+      leads.push(crmLeadView(key.name, JSON.parse(raw)));
+    } catch {
+      // Skip malformed records instead of breaking the CRM.
+    }
+  }
+  return leads.sort((a, b) => String(b.receivedAt || b.id).localeCompare(String(a.receivedAt || a.id)));
+}
+
+function crmHtml() {
+  return `<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EngBrain Leads CRM</title>
+<style>
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Noto Sans Thai',Arial,sans-serif;background:#fff7ed;color:#1f2937;}
+  header{position:sticky;top:0;background:#111827;color:white;padding:18px 22px;z-index:2;box-shadow:0 4px 18px #0002;}
+  h1{margin:0;font-size:22px}.sub{opacity:.8;font-size:13px;margin-top:4px}.wrap{padding:18px;max-width:1500px;margin:auto}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.toolbar input,.toolbar select{padding:10px 12px;border:1px solid #ddd;border-radius:12px;font:inherit}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}.card{background:white;border:1px solid #f1d7bd;border-radius:18px;padding:16px;box-shadow:0 8px 28px #9a341222}.top{display:flex;justify-content:space-between;gap:10px}.badge{font-weight:800;border-radius:999px;padding:5px 10px;font-size:12px}.HOT{background:#fee2e2;color:#991b1b}.WARM{background:#fef3c7;color:#92400e}.NURTURE,.COLD{background:#e0f2fe;color:#075985}.name{font-size:18px;font-weight:800}.meta{font-size:13px;color:#6b7280;margin:4px 0}.line{margin:7px 0;font-size:14px}.sales{display:grid;gap:8px;margin-top:12px}.sales input,.sales select,.sales textarea{width:100%;box-sizing:border-box;padding:9px;border:1px solid #ddd;border-radius:10px;font:inherit}.sales textarea{min-height:70px}button{border:0;border-radius:12px;background:#111827;color:white;padding:10px 12px;font-weight:800;cursor:pointer}.answers{white-space:pre-wrap;background:#f9fafb;border-radius:12px;padding:10px;font-size:12px;max-height:170px;overflow:auto}.msg{position:fixed;right:16px;bottom:16px;background:#111827;color:white;padding:12px 14px;border-radius:12px;display:none}
+</style>
+</head>
+<body>
+<header><h1>EngBrain Leads CRM</h1><div class="sub">ลีดจากแบบทดสอบ พร้อมสถานะทีมเซลส์ โทร แชท โน้ต และคำตอบทั้งหมด</div></header>
+<div class="wrap">
+  <div class="toolbar">
+    <input id="q" placeholder="ค้นหาชื่อ เบอร์ LINE คอร์ส โน้ต" />
+    <select id="priority"><option value="">ทุกความสำคัญ</option><option>HOT</option><option>WARM</option><option value="NURTURE">COLD/NURTURE</option></select>
+    <select id="status"><option value="">ทุกสถานะเซลส์</option><option>ใหม่</option><option>กำลังติดต่อ</option><option>นัดคุยแล้ว</option><option>ปิดการขายแล้ว</option><option>ยังไม่พร้อม</option></select>
+    <button onclick="loadLeads()">Refresh</button>
+  </div>
+  <div id="grid" class="grid">กำลังโหลด...</div>
+</div>
+<div id="msg" class="msg"></div>
+<script>
+let leads=[];
+const $=id=>document.getElementById(id);
+function showMsg(text){$('msg').textContent=text;$('msg').style.display='block';setTimeout(()=>$('msg').style.display='none',2200)}
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function priorityLabel(p){return p==='NURTURE'?'COLD/NURTURE':(p||'ไม่ระบุ')}
+function summaryText(lead){return JSON.stringify(lead.answers||{},null,2)}
+async function loadLeads(){
+  const res=await fetch('/api/leads',{cache:'no-store'});
+  if(!res.ok){$('grid').textContent='โหลดข้อมูลไม่ได้ หรือ username/password ไม่ถูกต้อง';return}
+  leads=(await res.json()).leads||[]; render();
+}
+function render(){
+  const q=$('q').value.toLowerCase(); const p=$('priority').value; const s=$('status').value;
+  const filtered=leads.filter(l=>{
+    const blob=JSON.stringify(l).toLowerCase();
+    return (!q||blob.includes(q)) && (!p||l.qualification?.priority===p) && (!s||l.sales?.status===s);
+  });
+  $('grid').innerHTML=filtered.map(l=>
+    '<div class="card">' +
+    '<div class="top"><div><div class="name">' + esc(l.contact?.name||'ไม่ระบุชื่อ') + '</div><div class="meta">' + esc(l.receivedAt) + ' · ' + esc(l.path) + '</div></div><span class="badge ' + esc(l.qualification?.priority) + '">' + esc(priorityLabel(l.qualification?.priority)) + ' ' + esc(l.qualification?.score??'') + '</span></div>' +
+    '<div class="line">📞 ' + esc(l.contact?.phone||'-') + ' · LINE ' + esc(l.contact?.line||'-') + '</div>' +
+    '<div class="line">📚 ' + esc(l.match?.title||'-') + '</div>' +
+    '<div class="line">🧭 ' + esc(l.qualification?.summary||'') + '</div>' +
+    '<div class="line">💬 มุมขาย: ' + esc(l.qualification?.salesAngle||'') + '</div>' +
+    '<div class="sales">' +
+      '<input data-id="' + esc(l.id) + '" data-field="owner" placeholder="ผู้รับผิดชอบ / Caller / Chatter" value="' + esc(l.sales?.owner) + '" />' +
+      '<select data-id="' + esc(l.id) + '" data-field="status"><option>ใหม่</option><option>กำลังติดต่อ</option><option>นัดคุยแล้ว</option><option>ปิดการขายแล้ว</option><option>ยังไม่พร้อม</option><option>ติดต่อไม่ได้</option></select>' +
+      '<input data-id="' + esc(l.id) + '" data-field="channel" placeholder="สถานะโทร/แชท เช่น โทรแล้ว + LINE" value="' + esc(l.sales?.channel) + '" />' +
+      '<input data-id="' + esc(l.id) + '" data-field="nextFollowUp" placeholder="Follow-up ถัดไป เช่น 2026-05-20 19:00" value="' + esc(l.sales?.nextFollowUp) + '" />' +
+      '<textarea data-id="' + esc(l.id) + '" data-field="notes" placeholder="โน้ตเซลส์">' + esc(l.sales?.notes) + '</textarea>' +
+      '<button data-save-id="' + esc(l.id) + '">บันทึก</button>' +
+    '</div>' +
+    '<details><summary>ดูคำตอบทั้งหมด</summary><pre class="answers">' + esc(summaryText(l)) + '</pre></details>' +
+  '</div>').join('') || 'ยังไม่มีลีด';
+  filtered.forEach(l=>{ const sel=document.querySelector('select[data-id="' + CSS.escape(l.id) + '"][data-field="status"]'); if(sel) sel.value=l.sales?.status||'ใหม่'; });
+  document.querySelectorAll('button[data-save-id]').forEach(btn=>btn.addEventListener('click',()=>saveLead(btn.dataset.saveId)));
+}
+async function saveLead(id){
+  const payload={}; document.querySelectorAll('[data-id="' + CSS.escape(id) + '"]').forEach(el=>payload[el.dataset.field]=el.value);
+  const res=await fetch('/api/leads/'+encodeURIComponent(id),{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  if(!res.ok){showMsg('บันทึกไม่สำเร็จ');return}
+  const updated=(await res.json()).lead; leads=leads.map(l=>l.id===id?updated:l); render(); showMsg('บันทึกแล้ว');
+}
+['q','priority','status'].forEach(id=>$(id).addEventListener('input',render));
+loadLeads();
+</script>
+</body>
+</html>`;
+}
+
+export async function handleCrmRequest(request, env = {}, deps = {}) {
+  const authError = requireCrmAuth(request, env);
+  if (authError) return authError;
+  const url = new URL(request.url);
+
+  if (url.pathname === '/crm') {
+    return new Response(crmHtml(), {
+      headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+    });
+  }
+
+  if (url.pathname === '/api/leads' && request.method === 'GET') {
+    return crmJson({ leads: await listCrmLeads(env) });
+  }
+
+  const match = url.pathname.match(/^\/api\/leads\/(.+)$/);
+  if (match && request.method === 'PATCH') {
+    const key = decodeURIComponent(match[1]);
+    if (!key.startsWith('lead:')) return crmJson({ ok: false, error: 'Invalid lead id.' }, 400);
+    const raw = await env.LEADS_KV?.get(key);
+    if (!raw) return crmJson({ ok: false, error: 'Lead not found.' }, 404);
+    const lead = JSON.parse(raw);
+    let body = {};
+    try { body = await request.json(); } catch { return crmJson({ ok: false, error: 'Invalid JSON.' }, 400); }
+    lead.sales = cleanSalesPatch(body, deps);
+    await env.LEADS_KV.put(key, JSON.stringify(lead));
+    return crmJson({ ok: true, lead: crmLeadView(key, lead) });
+  }
+
+  if (match && request.method === 'DELETE') {
+    const key = decodeURIComponent(match[1]);
+    if (!key.startsWith('lead:')) return crmJson({ ok: false, error: 'Invalid lead id.' }, 400);
+    const raw = await env.LEADS_KV?.get(key);
+    if (!raw) return crmJson({ ok: false, error: 'Lead not found.' }, 404);
+    await env.LEADS_KV.delete(key);
+    return crmJson({ ok: true, deleted: key });
+  }
+
+  return crmJson({ ok: false, error: 'Not found.' }, 404);
+}
+
 export async function handleLeadRequest(request, env = {}, deps = {}) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (request.method !== 'POST') return json({ ok: false, error: 'Method not allowed.' }, 405);
@@ -446,6 +665,9 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/lead') {
       return handleLeadRequest(request, env, { waitUntil: ctx?.waitUntil?.bind(ctx) });
+    }
+    if (url.pathname === '/crm' || url.pathname === '/api/leads' || url.pathname.startsWith('/api/leads/')) {
+      return handleCrmRequest(request, env);
     }
     return env.ASSETS.fetch(request);
   },

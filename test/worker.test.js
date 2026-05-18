@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   buildSalesQualification,
   buildTelegramMessage,
+  handleCrmRequest,
   handleLeadRequest,
   normalizeLead,
 } from '../src/worker.js';
@@ -32,7 +33,24 @@ function createKv() {
     map,
     async get(key) { return map.get(key) ?? null; },
     async put(key, value) { map.set(key, value); },
+    async delete(key) { map.delete(key); },
+    async list(options = {}) {
+      const prefix = options.prefix || '';
+      const keys = [...map.keys()]
+        .filter((name) => name.startsWith(prefix))
+        .sort()
+        .map((name) => ({ name }));
+      return { keys, list_complete: true };
+    },
   };
+}
+
+function crmRequest(path, options = {}) {
+  return new Request(`https://engbrain.example.com${path}`, options);
+}
+
+function basicAuth(username = 'sales', password = 'secret') {
+  return `Basic ${btoa(`${username}:${password}`)}`;
 }
 
 test('normalizeLead keeps only safe expected lead fields', () => {
@@ -250,6 +268,100 @@ test('handleLeadRequest rate limits repeated submissions by IP', async () => {
 
   const limited = await handleLeadRequest(request({ answers: { 10: { name: 'Nok', phone: '0812345678' } } }, { 'CF-Connecting-IP': '198.51.100.2' }), env, deps);
   assert.equal(limited.status, 429);
+});
+
+test('CRM requires username and password before showing leads', async () => {
+  const res = await handleCrmRequest(crmRequest('/crm'), {
+    LEADS_KV: createKv(),
+    CRM_USERNAME: 'sales',
+    CRM_PASSWORD: 'secret',
+  });
+
+  assert.equal(res.status, 401);
+  assert.match(res.headers.get('www-authenticate'), /EngBrain CRM/);
+});
+
+test('CRM lists leads with sales status, qualification, contact info, and all answers', async () => {
+  const kv = createKv();
+  const lead = {
+    source: 'engbrain-quiz',
+    receivedAt: '2026-05-18T10:00:00.000Z',
+    path: 'parent',
+    answers: {
+      2: { name: 'Prim', age: '7', grade: 'Grade 1' },
+      6: ['reading', 'confidence'],
+      10: { name: 'Nok', phone: '0812345678', line: '@nok' },
+    },
+    match: { title: 'Jolly Phonics Level 1' },
+    qualification: { priority: 'HOT', score: 9, summary: 'Ready now', salesAngle: 'Reading confidence', nextAction: 'Call now', followUp: 'Thai message' },
+  };
+  await kv.put('lead:2000:b', JSON.stringify(lead));
+
+  const res = await handleCrmRequest(crmRequest('/api/leads', {
+    headers: { authorization: basicAuth() },
+  }), { LEADS_KV: kv, CRM_USERNAME: 'sales', CRM_PASSWORD: 'secret' });
+  const data = await res.json();
+
+  assert.equal(res.status, 200);
+  assert.equal(data.leads.length, 1);
+  assert.equal(data.leads[0].id, 'lead:2000:b');
+  assert.equal(data.leads[0].contact.name, 'Nok');
+  assert.equal(data.leads[0].qualification.priority, 'HOT');
+  assert.equal(data.leads[0].sales.owner, '');
+  assert.equal(data.leads[0].sales.status, 'ใหม่');
+  assert.deepEqual(data.leads[0].answers['6'], ['reading', 'confidence']);
+});
+
+test('CRM updates caller, channel status, lead status, next follow-up, and notes', async () => {
+  const kv = createKv();
+  await kv.put('lead:1000:a', JSON.stringify({
+    source: 'engbrain-quiz',
+    receivedAt: '2026-05-18T09:00:00.000Z',
+    path: 'mom',
+    answers: { 10: { name: 'Bee', phone: '0812345678', line: '@bee' } },
+    match: { title: 'SmartMom' },
+    qualification: { priority: 'WARM', score: 5 },
+  }));
+
+  const res = await handleCrmRequest(crmRequest('/api/leads/lead%3A1000%3Aa', {
+    method: 'PATCH',
+    headers: { authorization: basicAuth(), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      owner: 'Kru Bow Sales 1',
+      status: 'กำลังติดต่อ',
+      channel: 'โทรแล้ว + LINE',
+      nextFollowUp: '2026-05-20',
+      notes: 'สนใจ SmartMom รอคุยตอนเย็น',
+    }),
+  }), { LEADS_KV: kv, CRM_USERNAME: 'sales', CRM_PASSWORD: 'secret' }, { now: () => 1800000000000 });
+  const data = await res.json();
+  const stored = JSON.parse(kv.map.get('lead:1000:a'));
+
+  assert.equal(res.status, 200);
+  assert.equal(data.lead.sales.owner, 'Kru Bow Sales 1');
+  assert.equal(stored.sales.status, 'กำลังติดต่อ');
+  assert.equal(stored.sales.channel, 'โทรแล้ว + LINE');
+  assert.equal(stored.sales.nextFollowUp, '2026-05-20');
+  assert.equal(stored.sales.notes, 'สนใจ SmartMom รอคุยตอนเย็น');
+  assert.equal(stored.sales.updatedAt, new Date(1800000000000).toISOString());
+});
+
+test('CRM deletes a lead when cleaning invalid or test records', async () => {
+  const kv = createKv();
+  await kv.put('lead:cleanup:test', JSON.stringify({
+    source: 'engbrain-quiz',
+    receivedAt: '2026-05-18T09:30:00.000Z',
+    answers: { 10: { name: 'Delete Me', phone: '0999999999' } },
+    match: { title: 'Test Course' },
+  }));
+
+  const res = await handleCrmRequest(crmRequest('/api/leads/lead%3Acleanup%3Atest', {
+    method: 'DELETE',
+    headers: { authorization: basicAuth() },
+  }), { LEADS_KV: kv, CRM_USERNAME: 'sales', CRM_PASSWORD: 'secret' });
+
+  assert.equal(res.status, 200);
+  assert.equal(kv.map.has('lead:cleanup:test'), false);
 });
 
 test('handleLeadRequest rejects invalid payloads', async () => {
