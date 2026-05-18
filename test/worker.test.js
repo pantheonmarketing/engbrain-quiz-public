@@ -142,7 +142,7 @@ test('buildSalesQualification scores hot teacher school partnership leads', () =
   assert.match(qualification.followUp, /Engbrain Teacher Partnership/);
 });
 
-test('buildTelegramMessage includes teacher qualification details', () => {
+test('buildTelegramMessage sends Thai teacher qualification details for sales team', () => {
   const msg = buildTelegramMessage({
     path: 'teacher',
     match: { title: 'Engbrain Teacher Partnership' },
@@ -157,15 +157,17 @@ test('buildTelegramMessage includes teacher qualification details', () => {
     },
   });
 
-  assert.match(msg, /Type: Teacher/);
-  assert.match(msg, /School\/center: ABC School/);
-  assert.match(msg, /Role: K2 teacher/);
-  assert.match(msg, /Teacher type: Individual teacher/);
-  assert.match(msg, /Students: 6–15/);
-  assert.match(msg, /Needs: Printable worksheets\/student packs, Lesson plans\/scripts/);
+  assert.match(msg, /ลีดใหม่จากแบบทดสอบ Engbrain/);
+  assert.match(msg, /ประเภทลูกค้า: ครู\/โรงเรียน/);
+  assert.match(msg, /โรงเรียน\/ศูนย์: ABC School/);
+  assert.match(msg, /ตำแหน่ง: K2 teacher/);
+  assert.match(msg, /ประเภทครู: ครูรายบุคคล/);
+  assert.match(msg, /จำนวนนักเรียน: 6–15/);
+  assert.match(msg, /ต้องการ: ชุดใบงาน\/แพ็กนักเรียน, แผนการสอน\/สคริปต์สอน/);
+  assert.doesNotMatch(msg, /Teacher type:|Students:|Needs:/);
 });
 
-test('buildTelegramMessage includes qualification summary and suggested follow-up', () => {
+test('buildTelegramMessage sends Thai qualification summary and suggested follow-up', () => {
   const msg = buildTelegramMessage({
     path: 'parent',
     match: { title: 'Jolly Phonics Level 1' },
@@ -181,13 +183,15 @@ test('buildTelegramMessage includes qualification summary and suggested follow-u
     },
   });
 
-  assert.match(msg, /New Engbrain Quiz Lead/);
-  assert.match(msg, /Name: Nok/);
-  assert.match(msg, /Child: Prim/);
-  assert.match(msg, /Priority: HOT/);
-  assert.match(msg, /Sales angle:/);
-  assert.match(msg, /Suggested reply:/);
-  assert.match(msg, /RECOMMENDED: Jolly Phonics Level 1/);
+  assert.match(msg, /ลีดใหม่จากแบบทดสอบ Engbrain/);
+  assert.match(msg, /ชื่อลูกค้า: Nok/);
+  assert.match(msg, /ข้อมูลเด็ก: Prim/);
+  assert.match(msg, /ความสำคัญ: HOT/);
+  assert.match(msg, /สรุปลีด:/);
+  assert.match(msg, /มุมขาย:/);
+  assert.match(msg, /ข้อความแนะนำให้เซลส์ส่ง:/);
+  assert.match(msg, /คอร์สที่แนะนำ: Jolly Phonics Level 1/);
+  assert.doesNotMatch(msg, /New Engbrain Quiz Lead|Sales angle:|Suggested reply:|RECOMMENDED:/);
   assert.doesNotMatch(msg, /bot\d+:/i);
 });
 

@@ -195,6 +195,115 @@ export function buildSalesQualification(lead) {
   };
 }
 
+const THAI = {
+  persona: { parent: 'ผู้ปกครอง (หาคอร์สให้ลูก)', mom: 'คุณแม่ (พัฒนาอังกฤษของตัวเอง)', teacher: 'ครู/โรงเรียน' },
+  grade: LABELS.grade,
+  goal: { reading:'การอ่านเชิงวิชาการ', speak:'การพูด', 'ep-exam':'สอบ EP', inter:'เตรียมอนาคตสายอินเตอร์', confidence:'ความมั่นใจ' },
+  format: { '1on1':'เรียนตัวต่อตัว 1:1', group:'กลุ่ม Zoom', video:'คอร์สวิดีโอ', books:'หนังสือ/สื่อฝึกเอง', unsure:'ยังไม่แน่ใจ' },
+  budget: LABELS.budget,
+  timeline: { now:'พร้อมเริ่มทันที', month:'ภายใน 1 เดือน', '3month':'ภายใน 3 เดือน', research:'กำลังศึกษาข้อมูล' },
+  az: { confident:'รู้ A-Z ค่อนข้างมั่นใจ', some:'รู้บ้าง', no:'ยังไม่ค่อยได้', unsure:'ไม่แน่ใจ' },
+  jolly: { done:'เคยเรียน Jolly Phonics แล้ว', some:'เคยเรียนบ้าง', no:'ยังไม่เคยเรียน', unsure:'ไม่แน่ใจ' },
+  momFear: { pronunciation:'กลัวออกเสียงผิด', vocabulary:'คำศัพท์ไม่พอ', mistakes:'กลัวลูกจำผิด', shy:'เขิน/ไม่มั่นใจ', daily:'ไม่รู้จะพูดอะไรกับลูกทุกวัน' },
+  momSounds: { yes:'รู้และมั่นใจ', some:'รู้บ้างบางเสียง', no:'ยังไม่เคยเรียนจริงจัง', 'not-sure':'ไม่แน่ใจว่า 44 sounds คืออะไร' },
+  momDaily: { none:'ยังไม่มีภาษาอังกฤษทุกวัน', 'few-words':'พูดได้ไม่กี่คำ', '5-10':'วันละ 5–10 นาที', '10-plus':'มากกว่า 10 นาที', inconsistent:'พยายามอยู่แต่ยังไม่สม่ำเสมอ' },
+  momBlocker: { confidence:'ไม่มั่นใจ', what:'ไม่รู้จะสอนอะไร', pronounce:'ติดเรื่องการออกเสียง', child:'ลูกไม่ค่อยสนุก', teacher:'คิดว่าโรงเรียน/ครูควรจัดการ' },
+  momFit: { 'yes-self':'อยากพัฒนาตัวเองด้วย', 'yes-guidance':'อยากได้คนไกด์', simple:'สนใจถ้าทำตามง่าย', no:'อยากให้ครูสอนมากกว่า' },
+  teacherType: { teacher:'ครูรายบุคคล', owner:'เจ้าของโรงเรียน/ศูนย์', coordinator:'หัวหน้าครู/ฝ่ายวิชาการ', tutor:'ติวเตอร์/เจ้าของศูนย์', homeschool:'ผู้ปกครอง/ครูโฮมสคูล' },
+  teacherAges: { kindergarten:'อนุบาล', 'g1-g3':'ประถม G1–G3', 'g4-g6':'ประถม G4–G6', mixed:'หลายช่วงอายุ', adults:'ผู้ใหญ่/อบรมครู' },
+  teacherNeed: { curriculum:'หลักสูตร Phonics', training:'อบรมครู', worksheets:'ชุดใบงาน/แพ็กนักเรียน', 'lesson-plans':'แผนการสอน/สคริปต์สอน', pronunciation:'พัฒนาการออกเสียงของครู', licensing:'ไลเซนส์/พาร์ตเนอร์' },
+  teacherStudents: LABELS.teacherStudents,
+  teacherTimeline: { immediate:'ต้องการทันที', 'this-term':'ใช้เทอมนี้', 'next-term':'ใช้เทอมหน้า', research:'กำลังศึกษาข้อมูล' },
+};
+
+function t(table, key, fallback = 'ไม่ระบุ') {
+  return THAI[table]?.[key] || LABELS[table]?.[key] || key || fallback;
+}
+
+function ThaiList(items, table) {
+  return items.map((item) => t(table, item)).filter(Boolean).join(', ') || 'ไม่ระบุ';
+}
+
+function buildThaiSummary(lead, qualification) {
+  const answers = lead.answers || {};
+  const contact = answers['10'] || {};
+  if (lead.path === 'mom') {
+    return [
+      'ลีด SmartMom',
+      contact.childAge ? `อายุลูก ${contact.childAge}` : '',
+      answers['11'] ? `กังวล: ${t('momFear', answers['11'])}` : '',
+      answers['13'] ? `อังกฤษในบ้าน: ${t('momDaily', answers['13'])}` : '',
+      answers['12'] ? `44 sounds: ${t('momSounds', answers['12'])}` : '',
+      contact.line ? 'มี LINE แล้ว' : '',
+    ].filter(Boolean).join(' · ');
+  }
+  if (lead.path === 'teacher') {
+    const isSchoolLead = ['owner', 'coordinator', 'tutor'].includes(answers['16']) || ['16-30', '31-100', '100+'].includes(answers['19']) || (Array.isArray(answers['18']) && (answers['18'].includes('curriculum') || answers['18'].includes('licensing')));
+    return [
+      isSchoolLead ? 'ลีดโรงเรียน/ศูนย์/พาร์ตเนอร์' : 'ลีดอบรมครู',
+      contact.school || '',
+      answers['16'] ? t('teacherType', answers['16']) : '',
+      answers['17'] ? `ช่วงวัย: ${t('teacherAges', answers['17'])}` : '',
+      answers['19'] ? `นักเรียน ${t('teacherStudents', answers['19'])}` : '',
+      answers['20'] ? `เวลาเริ่ม: ${t('teacherTimeline', answers['20'])}` : '',
+      contact.line ? 'มี LINE แล้ว' : '',
+    ].filter(Boolean).join(' · ');
+  }
+  const goals = Array.isArray(answers['6']) ? answers['6'] : [];
+  return [
+    answers['7'] ? t('timeline', answers['7']) : '',
+    answers['8'] ? t('format', answers['8']) : '',
+    answers['9'] ? `งบ ${t('budget', answers['9'])}` : '',
+    goals.length ? `เป้าหมาย: ${ThaiList(goals, 'goal')}` : '',
+    contact.line ? 'มี LINE แล้ว' : '',
+  ].filter(Boolean).join(' · ') || qualification.summary;
+}
+
+function buildThaiSalesAngle(lead) {
+  const answers = lead.answers || {};
+  const match = lead.match || {};
+  const course = match.title || 'คอร์สที่ระบบแนะนำ';
+  if (lead.path === 'mom') {
+    return `เสนอ SmartMom เป็นทางลัดให้คุณแม่ไทยฝึก 44 sounds และเริ่มพูดอังกฤษกับลูกได้มั่นใจขึ้น โดยเริ่มจากปัญหาหลักของเขา: ${t('momBlocker', answers['14'])}`;
+  }
+  if (lead.path === 'teacher') {
+    const needs = Array.isArray(answers['18']) ? answers['18'] : [];
+    return `นำเสนอ ${course} ให้ตอบโจทย์ ${ThaiList(needs, 'teacherNeed')} พร้อมอธิบายเรื่องหลักสูตร สื่อการสอน และการซัพพอร์ตการนำไปใช้จริง`;
+  }
+  const child = answers['2'] || {};
+  const childLine = child.name ? `${child.name}${child.age ? ` อายุ ${child.age}` : ''}${child.grade ? ` ${t('grade', child.grade)}` : ''}` : 'ลูกของผู้ปกครอง';
+  return `เปิดบทสนทนาด้วยผลแบบทดสอบ: ระบบแนะนำ ${course} จากคำตอบของ ${childLine} ให้เน้นพื้นฐาน phonics การอ่าน และความมั่นใจของเด็ก`;
+}
+
+function buildThaiNextAction(lead, qualification) {
+  if (lead.path === 'mom') return 'รีบทักกลับ ยืนยันคูปอง SMARTMOM15 ส่วนลด 15% ภายใน 24 ชั่วโมง และส่งรายละเอียดคอร์ส SmartMom ราคา ฿3,990';
+  if (lead.path === 'teacher') return qualification.priority === 'HOT'
+    ? 'รีบติดต่อเพื่อถามว่าเป็นผู้ตัดสินใจหรือไม่ จำนวนห้อง/นักเรียน และส่งตัวเลือกพาร์ตเนอร์หรือไลเซนส์'
+    : 'ส่งข้อมูลพาร์ตเนอร์ ถามช่วงอายุ/จำนวนคลาส แล้วคัดกรองว่าเป็นครูรายบุคคลหรือผู้ตัดสินใจของโรงเรียน';
+  return qualification.priority === 'HOT'
+    ? 'รีบทักหรือโทรทันที ยืนยันผลแบบทดสอบ แนะนำคอร์ส และปิดขั้นตอนสมัครเรียนถัดไป'
+    : qualification.priority === 'WARM'
+      ? 'ส่งคำอธิบายผลแบบทดสอบแบบช่วยเหลือ ถามคำถามยืนยัน 1 ข้อ แล้วชวนเข้าสู่คลาสที่เหมาะที่สุด'
+      : 'ติดตามแบบไม่กดดัน ส่งผลลัพธ์และเหตุผลว่าทำไมคอร์สนี้เหมาะ แล้วชวนถามครูโบว์เพิ่มเติม';
+}
+
+function buildThaiFollowUp(lead) {
+  const answers = lead.answers || {};
+  const contact = answers['10'] || {};
+  const match = lead.match || {};
+  const course = match.title || 'คอร์สที่เหมาะสม';
+  if (lead.path === 'mom') {
+    return `สวัสดีค่ะคุณ${contact.name || 'แม่'} ขอบคุณที่ทำแบบทดสอบ Engbrain นะคะ จากคำตอบ ครูโบว์แนะนำ SmartMom ค่ะ ตอนนี้ใช้โค้ด SMARTMOM15 รับส่วนลด 15% ได้ภายใน 24 ชั่วโมง คอร์สนี้ช่วยให้คุณแม่ฝึก 44 sounds และเริ่มเป็นครูภาษาอังกฤษคนแรกของลูกได้อย่างมั่นใจ ต้องการให้ส่งรายละเอียดให้เลยไหมคะ`;
+  }
+  if (lead.path === 'teacher') {
+    const needs = Array.isArray(answers['18']) ? answers['18'] : [];
+    return `สวัสดีค่ะคุณ${contact.name || 'ครู'} ขอบคุณที่ทำแบบทดสอบ Engbrain นะคะ จากคำตอบ ครูโบว์แนะนำแนวทาง ${course}${contact.school ? ` สำหรับ ${contact.school}` : ''} ซึ่งช่วยเรื่อง ${ThaiList(needs, 'teacherNeed')} ได้ค่ะ รบกวนแจ้งจำนวนห้องหรือจำนวนนักเรียนที่ต้องการดูแลเพิ่มเติมได้ไหมคะ`;
+  }
+  const child = answers['2'] || {};
+  const goals = Array.isArray(answers['6']) ? answers['6'] : [];
+  return `สวัสดีค่ะคุณ${contact.name || 'ผู้ปกครอง'} ขอบคุณที่ทำแบบทดสอบ Engbrain นะคะ จากคำตอบของ${child.name ? `น้อง${child.name}` : 'ลูก'} ครูโบว์แนะนำ ${course} ค่ะ เหตุผลหลักคือ ${goals.length ? ThaiList(goals, 'goal') : 'ระดับภาษาอังกฤษและเป้าหมายการเรียนตอนนี้'} ต้องการให้ครูโบว์ช่วยคอนเฟิร์มคลาสและตารางเรียนที่เหมาะที่สุดให้ไหมคะ`;
+}
+
 export function buildTelegramMessage(lead) {
   const answers = lead.answers || {};
   const path = lead.path || 'parent';
@@ -202,50 +311,50 @@ export function buildTelegramMessage(lead) {
   const contact = answers['10'] || {};
   const qualification = lead.qualification || buildSalesQualification(lead);
 
-  let msg = `🎓 New Engbrain Quiz Lead!\n\n` +
-    `🔥 Priority: ${qualification.priority} (${qualification.score}/9)\n` +
-    `🧭 Summary: ${qualification.summary}\n\n` +
-    `👤 Name: ${contact.name || 'n/a'}\n` +
-    `📞 Phone: ${contact.phone || 'n/a'}\n` +
-    `💚 LINE: ${contact.line || 'n/a'}\n` +
-    `🙋 Type: ${LABELS.persona[path] || path}\n`;
+  let msg = `🎓 ลีดใหม่จากแบบทดสอบ Engbrain\n\n` +
+    `🔥 ความสำคัญ: ${qualification.priority} (${qualification.score}/9)\n` +
+    `🧭 สรุปลีด: ${buildThaiSummary({ ...lead, path, answers }, qualification)}\n\n` +
+    `👤 ชื่อลูกค้า: ${contact.name || 'ไม่ระบุ'}\n` +
+    `📞 เบอร์โทร: ${contact.phone || 'ไม่ระบุ'}\n` +
+    `💚 LINE: ${contact.line || 'ไม่ระบุ'}\n` +
+    `🙋 ประเภทลูกค้า: ${t('persona', path, path)}\n`;
 
   if (path === 'parent') {
     const child = answers['2'] || {};
     const goals = Array.isArray(answers['6']) ? answers['6'] : [];
     msg +=
-      `\n👶 Child: ${child.name || '?'} · Age ${child.age || '?'} · ${LABELS.grade[child.grade] || child.grade || '?'}\n` +
-      `🔤 Knows A-Z: ${answers['4'] || 'n/a'}\n` +
-      (answers['5'] ? `📗 Jolly Phonics: ${answers['5']}\n` : '') +
-      `🎯 Goals: ${goals.map((g) => LABELS.goal[g] || g).join(', ') || 'n/a'}\n` +
-      `⏰ Timeline: ${LABELS.timeline[answers['7']] || answers['7'] || 'n/a'}\n` +
-      `💻 Format: ${LABELS.format[answers['8']] || answers['8'] || 'n/a'}\n` +
-      `💰 Budget: ${LABELS.budget[answers['9']] || answers['9'] || 'n/a'}\n`;
+      `\n👶 ข้อมูลเด็ก: ${child.name || '?'} · อายุ ${child.age || '?'} · ${t('grade', child.grade, '?')}\n` +
+      `🔤 รู้ A-Z: ${t('az', answers['4'])}\n` +
+      (answers['5'] ? `📗 Jolly Phonics: ${t('jolly', answers['5'])}\n` : '') +
+      `🎯 เป้าหมาย: ${ThaiList(goals, 'goal')}\n` +
+      `⏰ ระยะเวลาที่อยากเริ่ม: ${t('timeline', answers['7'])}\n` +
+      `💻 รูปแบบที่สนใจ: ${t('format', answers['8'])}\n` +
+      `💰 งบประมาณ: ${t('budget', answers['9'])}\n`;
   } else if (path === 'mom') {
     msg +=
-      `\n👶 Child age: ${contact.childAge || 'n/a'}\n` +
-      `😟 Fear: ${LABELS.momFear[answers['11']] || answers['11'] || 'n/a'}\n` +
-      `🔤 44 sounds: ${LABELS.momSounds[answers['12']] || answers['12'] || 'n/a'}\n` +
-      `🗣 Daily English: ${LABELS.momDaily[answers['13']] || answers['13'] || 'n/a'}\n` +
-      `🧱 Blocker: ${LABELS.momBlocker[answers['14']] || answers['14'] || 'n/a'}\n` +
-      `✅ Willing to learn: ${LABELS.momFit[answers['15']] || answers['15'] || 'n/a'}\n` +
-      `🎟 Coupon: SMARTMOM15 · 15% off · valid 24 hours\n`;
+      `\n👶 อายุลูก: ${contact.childAge || 'ไม่ระบุ'}\n` +
+      `😟 ความกังวล: ${t('momFear', answers['11'])}\n` +
+      `🔤 ความเข้าใจ 44 sounds: ${t('momSounds', answers['12'])}\n` +
+      `🗣 ภาษาอังกฤษในบ้านตอนนี้: ${t('momDaily', answers['13'])}\n` +
+      `🧱 อุปสรรคหลัก: ${t('momBlocker', answers['14'])}\n` +
+      `✅ ความพร้อมเรียนของคุณแม่: ${t('momFit', answers['15'])}\n` +
+      `🎟 คูปอง: SMARTMOM15 · ลด 15% · ใช้ได้ภายใน 24 ชั่วโมง\n`;
   } else if (path === 'teacher') {
     const needs = Array.isArray(answers['18']) ? answers['18'] : [];
     msg +=
-      `\n🏫 School/center: ${contact.school || 'n/a'}\n` +
-      `🪪 Role: ${contact.role || 'n/a'}\n` +
-      `👩‍🏫 Teacher type: ${LABELS.teacherType[answers['16']] || answers['16'] || 'n/a'}\n` +
-      `👧 Ages/classes: ${LABELS.teacherAges[answers['17']] || answers['17'] || 'n/a'}\n` +
-      `🧰 Needs: ${needs.map((n) => LABELS.teacherNeed[n] || n).join(', ') || 'n/a'}\n` +
-      `👥 Students: ${LABELS.teacherStudents[answers['19']] || answers['19'] || 'n/a'}\n` +
-      `⏰ Timeline: ${LABELS.teacherTimeline[answers['20']] || answers['20'] || 'n/a'}\n`;
+      `\n🏫 โรงเรียน/ศูนย์: ${contact.school || 'ไม่ระบุ'}\n` +
+      `🪪 ตำแหน่ง: ${contact.role || 'ไม่ระบุ'}\n` +
+      `👩‍🏫 ประเภทครู: ${t('teacherType', answers['16'])}\n` +
+      `👧 ช่วงวัย/คลาส: ${t('teacherAges', answers['17'])}\n` +
+      `🧰 ต้องการ: ${ThaiList(needs, 'teacherNeed')}\n` +
+      `👥 จำนวนนักเรียน: ${t('teacherStudents', answers['19'])}\n` +
+      `⏰ ระยะเวลาที่อยากเริ่ม: ${t('teacherTimeline', answers['20'])}\n`;
   }
 
-  msg += `\n📚 RECOMMENDED: ${match.title || 'n/a'}\n\n` +
-    `💬 Sales angle: ${qualification.salesAngle}\n` +
-    `✅ Next action: ${qualification.nextAction}\n\n` +
-    `✉️ Suggested reply:\n${qualification.followUp}`;
+  msg += `\n📚 คอร์สที่แนะนำ: ${match.title || 'ไม่ระบุ'}\n\n` +
+    `💬 มุมขาย: ${buildThaiSalesAngle({ ...lead, path, answers })}\n` +
+    `✅ สิ่งที่ควรทำต่อ: ${buildThaiNextAction({ ...lead, path, answers }, qualification)}\n\n` +
+    `✉️ ข้อความแนะนำให้เซลส์ส่ง:\n${buildThaiFollowUp({ ...lead, path, answers })}`;
   return msg;
 }
 
