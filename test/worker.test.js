@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   buildSalesQualification,
   buildTelegramMessage,
@@ -14,6 +15,16 @@ function request(body, headers = {}) {
     body: JSON.stringify(body),
   });
 }
+
+test('homepage installs Meta Pixel 1260721357598576 before launch', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /connect\.facebook\.net\/en_US\/fbevents\.js/);
+  assert.match(html, /fbq\('init',\s*'1260721357598576'\)/);
+  assert.match(html, /fbq\('track',\s*'PageView'\)/);
+  assert.match(html, /facebook\.com\/tr\?id=1260721357598576&ev=PageView&noscript=1/);
+  assert.doesNotMatch(html, /YOUR_PIXEL_ID|PIXEL_ID/);
+});
 
 function createKv() {
   const map = new Map();
