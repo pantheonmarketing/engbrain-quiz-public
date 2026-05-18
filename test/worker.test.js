@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import {
+import worker, {
   buildSalesQualification,
   buildTelegramMessage,
   handleCrmRequest,
@@ -301,6 +301,60 @@ test('CRM page does not show raw debug answer JSON', async () => {
   assert.doesNotMatch(html, /summaryText\(/);
   assert.doesNotMatch(html, /JSON\.stringify\(lead\.answers/);
   assert.doesNotMatch(html, /<details><summary>/);
+});
+
+test('CRM page has a CSV download option', async () => {
+  const res = await handleCrmRequest(crmRequest('/crm', {
+    headers: { authorization: basicAuth() },
+  }), { LEADS_KV: createKv(), CRM_USERNAME: 'sales', CRM_PASSWORD: 'secret' });
+  const html = await res.text();
+
+  assert.match(html, /href="\/api\/leads\.csv"/);
+  assert.match(html, /Download CSV/);
+});
+
+test('CRM exports leads as CSV for spreadsheet download', async () => {
+  const kv = createKv();
+  await kv.put('lead:2000:b', JSON.stringify({
+    source: 'engbrain-quiz',
+    receivedAt: '2026-05-18T10:00:00.000Z',
+    path: 'parent',
+    answers: {
+      2: { name: 'Prim', age: '7', grade: 'Grade 1' },
+      10: { name: 'Nok, Mom', phone: '0812345678', line: '@nok' },
+    },
+    match: { title: 'Jolly Phonics Level 1' },
+    qualification: { priority: 'HOT', score: 9, summary: 'Ready now', salesAngle: 'Reading confidence' },
+    sales: { owner: 'Sales 1', status: 'กำลังติดต่อ', channel: 'LINE', nextFollowUp: '2026-05-20', notes: 'Asked for "details"' },
+  }));
+
+  const res = await handleCrmRequest(crmRequest('/api/leads.csv', {
+    headers: { authorization: basicAuth() },
+  }), { LEADS_KV: kv, CRM_USERNAME: 'sales', CRM_PASSWORD: 'secret' });
+  const csv = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /text\/csv/);
+  assert.match(res.headers.get('content-disposition'), /attachment; filename="engbrain-leads.csv"/);
+  assert.match(csv, /^received_at,customer_name,phone,line,child_name,child_age,child_grade,path,recommended_course,priority,score,summary,sales_angle,owner,sales_status,channel,next_follow_up,notes,id\r?\n/);
+  assert.match(csv, /"Nok, Mom",0812345678,@nok,Prim,7,Grade 1/);
+  assert.match(csv, /"Asked for ""details"""/);
+});
+
+test('deployed Worker routes CSV export through default fetch handler', async () => {
+  const kv = createKv();
+  await kv.put('lead:csv:route', JSON.stringify({
+    receivedAt: '2026-05-18T10:00:00.000Z',
+    answers: { 10: { name: 'Route Test', phone: '0812345678' } },
+    match: { title: 'SmartMom' },
+  }));
+  const res = await worker.fetch(crmRequest('/api/leads.csv', {
+    headers: { authorization: basicAuth() },
+  }), { LEADS_KV: kv, CRM_USERNAME: 'sales', CRM_PASSWORD: 'secret' });
+  const csv = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.match(csv, /Route Test/);
 });
 
 test('CRM lists leads with sales status, qualification, contact info, and all answers', async () => {

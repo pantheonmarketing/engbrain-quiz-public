@@ -513,6 +513,42 @@ async function listCrmLeads(env) {
   return leads.sort((a, b) => String(b.receivedAt || b.id).localeCompare(String(a.receivedAt || a.id)));
 }
 
+function csvCell(value) {
+  const text = Array.isArray(value) ? value.join('; ') : String(value ?? '');
+  if (/[",\r\n]/.test(text)) return `"${text.replaceAll('"', '""')}"`;
+  return text;
+}
+
+function leadsCsv(leads) {
+  const headers = [
+    'received_at', 'customer_name', 'phone', 'line', 'child_name', 'child_age', 'child_grade', 'path',
+    'recommended_course', 'priority', 'score', 'summary', 'sales_angle', 'owner', 'sales_status',
+    'channel', 'next_follow_up', 'notes', 'id',
+  ];
+  const rows = leads.map((lead) => [
+    lead.receivedAt,
+    lead.contact?.name,
+    lead.contact?.phone,
+    lead.contact?.line,
+    lead.child?.name,
+    lead.child?.age || lead.contact?.childAge,
+    lead.child?.grade,
+    lead.path,
+    lead.match?.title,
+    lead.qualification?.priority,
+    lead.qualification?.score,
+    lead.qualification?.summary,
+    lead.qualification?.salesAngle,
+    lead.sales?.owner,
+    lead.sales?.status,
+    lead.sales?.channel,
+    lead.sales?.nextFollowUp,
+    lead.sales?.notes,
+    lead.id,
+  ].map(csvCell).join(','));
+  return [headers.join(','), ...rows].join('\r\n') + '\r\n';
+}
+
 function crmHtml() {
   return `<!doctype html>
 <html lang="th">
@@ -523,7 +559,7 @@ function crmHtml() {
 <style>
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Noto Sans Thai',Arial,sans-serif;background:#fff7ed;color:#1f2937;}
   header{position:sticky;top:0;background:#111827;color:white;padding:18px 22px;z-index:2;box-shadow:0 4px 18px #0002;}
-  h1{margin:0;font-size:22px}.sub{opacity:.8;font-size:13px;margin-top:4px}.wrap{padding:18px;max-width:1500px;margin:auto}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.toolbar input,.toolbar select{padding:10px 12px;border:1px solid #ddd;border-radius:12px;font:inherit}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}.card{background:white;border:1px solid #f1d7bd;border-radius:18px;padding:16px;box-shadow:0 8px 28px #9a341222}.top{display:flex;justify-content:space-between;gap:10px}.badge{font-weight:800;border-radius:999px;padding:5px 10px;font-size:12px}.HOT{background:#fee2e2;color:#991b1b}.WARM{background:#fef3c7;color:#92400e}.NURTURE,.COLD{background:#e0f2fe;color:#075985}.name{font-size:18px;font-weight:800}.meta{font-size:13px;color:#6b7280;margin:4px 0}.line{margin:7px 0;font-size:14px}.sales{display:grid;gap:8px;margin-top:12px}.sales input,.sales select,.sales textarea{width:100%;box-sizing:border-box;padding:9px;border:1px solid #ddd;border-radius:10px;font:inherit}.sales textarea{min-height:70px}button{border:0;border-radius:12px;background:#111827;color:white;padding:10px 12px;font-weight:800;cursor:pointer}.msg{position:fixed;right:16px;bottom:16px;background:#111827;color:white;padding:12px 14px;border-radius:12px;display:none}
+  h1{margin:0;font-size:22px}.sub{opacity:.8;font-size:13px;margin-top:4px}.wrap{padding:18px;max-width:1500px;margin:auto}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.toolbar input,.toolbar select{padding:10px 12px;border:1px solid #ddd;border-radius:12px;font:inherit}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}.card{background:white;border:1px solid #f1d7bd;border-radius:18px;padding:16px;box-shadow:0 8px 28px #9a341222}.top{display:flex;justify-content:space-between;gap:10px}.badge{font-weight:800;border-radius:999px;padding:5px 10px;font-size:12px}.HOT{background:#fee2e2;color:#991b1b}.WARM{background:#fef3c7;color:#92400e}.NURTURE,.COLD{background:#e0f2fe;color:#075985}.name{font-size:18px;font-weight:800}.meta{font-size:13px;color:#6b7280;margin:4px 0}.line{margin:7px 0;font-size:14px}.sales{display:grid;gap:8px;margin-top:12px}.sales input,.sales select,.sales textarea{width:100%;box-sizing:border-box;padding:9px;border:1px solid #ddd;border-radius:10px;font:inherit}.sales textarea{min-height:70px}button,.download{border:0;border-radius:12px;background:#111827;color:white;padding:10px 12px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-block}.msg{position:fixed;right:16px;bottom:16px;background:#111827;color:white;padding:12px 14px;border-radius:12px;display:none}
 </style>
 </head>
 <body>
@@ -534,6 +570,7 @@ function crmHtml() {
     <select id="priority"><option value="">ทุกความสำคัญ</option><option>HOT</option><option>WARM</option><option value="NURTURE">COLD/NURTURE</option></select>
     <select id="status"><option value="">ทุกสถานะเซลส์</option><option>ใหม่</option><option>กำลังติดต่อ</option><option>นัดคุยแล้ว</option><option>ปิดการขายแล้ว</option><option>ยังไม่พร้อม</option></select>
     <button onclick="loadLeads()">Refresh</button>
+    <a class="download" href="/api/leads.csv" download="engbrain-leads.csv">Download CSV</a>
   </div>
   <div id="grid" class="grid">กำลังโหลด...</div>
 </div>
@@ -596,6 +633,16 @@ export async function handleCrmRequest(request, env = {}, deps = {}) {
   if (url.pathname === '/crm') {
     return new Response(crmHtml(), {
       headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+    });
+  }
+
+  if (url.pathname === '/api/leads.csv' && request.method === 'GET') {
+    return new Response(leadsCsv(await listCrmLeads(env)), {
+      headers: {
+        'content-type': 'text/csv; charset=utf-8',
+        'content-disposition': 'attachment; filename="engbrain-leads.csv"',
+        'cache-control': 'no-store',
+      },
     });
   }
 
@@ -665,7 +712,7 @@ export default {
     if (url.pathname === '/api/lead') {
       return handleLeadRequest(request, env, { waitUntil: ctx?.waitUntil?.bind(ctx) });
     }
-    if (url.pathname === '/crm' || url.pathname === '/api/leads' || url.pathname.startsWith('/api/leads/')) {
+    if (url.pathname === '/crm' || url.pathname === '/api/leads' || url.pathname === '/api/leads.csv' || url.pathname.startsWith('/api/leads/')) {
       return handleCrmRequest(request, env);
     }
     return env.ASSETS.fetch(request);
