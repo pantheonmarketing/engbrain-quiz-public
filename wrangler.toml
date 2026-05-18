@@ -12,5 +12,5 @@ binding = "ASSETS"
 # Then replace both IDs below.
 [[kv_namespaces]]
 binding = "LEADS_KV"
-id = "REPLACE_WITH_YOUR_LEADS_KV_ID"
-preview_id = "REPLACE_WITH_YOUR_PREVIEW_LEADS_KV_ID"
+id = "ae41cc27cd7f437fb5caa05a4321485e"
+preview_id = "b66a6bc8d2974ecb8ccb1c3fb7ddd646"
